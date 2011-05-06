@@ -1,0 +1,118 @@
+#!/bin/sh
+# vim: set syntax=sh
+RSYNC="rsync -az"
+RSYNC_EXTRA_OPTS=""
+
+usage() {
+    echo "usage: $0 [options] <remote_spec> <path_spec>"
+    echo ""
+    echo "Options:"
+    echo "-u    Username to use for the remote."
+    echo "-n    Dry run."
+    echo "-x    Don't delete files."
+    echo "-v    Verbose."
+    echo ""
+}
+
+# Parse options
+# This uses getopt, which curently is only guaranteed to work on BSD and Mac only
+args=`getopt nxvu: $*`
+# you should not use `getopt abo: "$@"` since that would parse
+# the arguments differently from what the set command below does.
+if [ $? != 0 ]; then
+    usage
+    exit 2
+fi
+set -- $args
+# You cannot use the set command with a backquoted getopt directly,
+# since the exit code from getopt would be shadowed by those of set,
+# which is zero by definition.
+
+DONT_DELETE=0
+for i; do
+    case "$i" in
+        -n|-v)
+            # Pass these on as options to rsync
+            RSYNC_EXTRA_OPTS="${RSYNC_EXTRA_OPTS} $i"
+            shift;;
+        -x)
+            DONT_DELETE=1
+            shift;;
+        -u)
+            REMOTE_USER="$2"
+            shift 2;;
+        --)
+            shift; break;;
+    esac
+done
+
+if [ $# -lt 1 ]; then
+    usage
+    echo "error: Expected remote_spec argument"
+    exit 2
+fi
+
+REMOTE_SPEC="$1"
+shift 1;
+
+if [ $# -lt 1 ]; then
+    usage
+    echo "error: Expected path_spec argument"
+    exit 2
+fi
+
+PATH_SPEC="$1"
+shift 1;
+
+if [ $# -ge 1 ]; then
+    usage
+    echo "error: Excessive arguments found after path_spec: $@"
+    exit 2
+fi
+
+startswith() { [ "$1" != "${1#$2}" ]; }
+endswith() { [ "$1" != "${1%$2}" ]; }
+
+strip_slashes_from_end() {
+    arg="$1"
+    while endswith "$arg" "/"; do
+        arg="${arg%/}"
+    done
+    echo "$arg"
+}
+
+strip_slashes_from_beginning() {
+    arg="$1"
+    while startswith "$arg" "/"; do
+        arg="${arg#/}"
+    done
+    echo "$arg"
+}
+
+PATH_SPEC=$(strip_slashes_from_end "$PATH_SPEC")
+if startswith "${PATH_SPEC}" "${HOME}"; then
+    PATH_SPEC=$(strip_slashes_from_beginning "${PATH_SPEC#${HOME}}")
+    ABSOLUTE=0
+elif startswith "${PATH_SPEC}" "/"; then
+    ABSOLUTE=1
+else
+    ABSOLUTE=0
+fi
+
+if [ $DONT_DELETE -eq 0 ]; then
+    RSYNC_EXTRA_OPTS="${RSYNC_EXTRA_OPTS} --delete-after"
+fi
+
+REMOTE_USER_PREFIX="${REMOTE_USER}@"
+SCRIPT_NAME=$(basename "$0")
+if [ "$SCRIPT_NAME" == "syncto" ]; then
+    SRC=${PATH_SPEC}/
+    DEST=${REMOTE_USER_PREFIX}${REMOTE_SPEC}:${PATH_SPEC}
+elif [ "$SCRIPT_NAME" == "syncfrom" ]; then
+    SRC=${REMOTE_USER_PREFIX}${REMOTE_SPEC}:${PATH_SPEC}/
+    DEST=${PATH_SPEC}
+else
+    echo "error: Invalid command alias"
+    exit 2
+fi
+(cd $HOME; ${RSYNC} ${RSYNC_EXTRA_OPTS} $SRC $DEST)
