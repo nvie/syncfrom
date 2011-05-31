@@ -69,14 +69,6 @@ fi
 startswith() { [ "$1" != "${1#$2}" ]; }
 endswith() { [ "$1" != "${1%$2}" ]; }
 
-strip_slashes_from_end() {
-    arg="$1"
-    while endswith "$arg" "/"; do
-        arg="${arg%/}"
-    done
-    echo "$arg"
-}
-
 strip_slashes_from_beginning() {
     arg="$1"
     while startswith "$arg" "/"; do
@@ -85,7 +77,14 @@ strip_slashes_from_beginning() {
     echo "$arg"
 }
 
-PATH_SPEC=$(strip_slashes_from_end "$PATH_SPEC")
+# Assert path spec is a directory
+if [ ! -d "${PATH_SPEC}" ]; then
+    echo "$0 only supports syncing of directories, not individual files."
+    exit 1
+fi
+
+# Make the path spec absolute
+PATH_SPEC=$(cd ${PATH_SPEC}; pwd)
 if startswith "${PATH_SPEC}" "${HOME}"; then
     PATH_SPEC=$(strip_slashes_from_beginning "${PATH_SPEC#${HOME}}")
     ABSOLUTE=0
