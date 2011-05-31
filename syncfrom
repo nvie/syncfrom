@@ -7,7 +7,6 @@ usage() {
     echo "usage: $0 [options] <remote_spec> <path_spec>"
     echo ""
     echo "Options:"
-    echo "-u    Username to use for the remote."
     echo "-n    Dry run."
     echo "-x    Don't delete files."
     echo "-v    Verbose."
@@ -38,9 +37,6 @@ for i; do
         -x)
             DONT_DELETE=1
             shift;;
-        -u)
-            REMOTE_USER="$2"
-            shift 2;;
         --)
             shift; break;;
     esac
@@ -103,13 +99,12 @@ if [ $DONT_DELETE -eq 0 ]; then
     RSYNC_EXTRA_OPTS="${RSYNC_EXTRA_OPTS} --delete-after"
 fi
 
-REMOTE_USER_PREFIX="${REMOTE_USER}@"
 SCRIPT_NAME=$(basename "$0")
 if [ "$SCRIPT_NAME" == "syncto" ]; then
     SRC=${PATH_SPEC}/
-    DEST=${REMOTE_USER_PREFIX}${REMOTE_SPEC}:${PATH_SPEC}
+    DEST=${REMOTE_SPEC}:${PATH_SPEC}
 elif [ "$SCRIPT_NAME" == "syncfrom" ]; then
-    SRC=${REMOTE_USER_PREFIX}${REMOTE_SPEC}:${PATH_SPEC}/
+    SRC=${REMOTE_SPEC}:${PATH_SPEC}/
     DEST=${PATH_SPEC}
 else
     echo "error: Invalid command alias"
