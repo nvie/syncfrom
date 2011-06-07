@@ -1,7 +1,7 @@
 #!/bin/sh
 # vim: set syntax=sh
 RSYNC="rsync -az"
-RSYNC_EXTRA_OPTS=""
+RSYNC_EXTRA_OPTS="--progress"
 
 usage() {
     echo "usage: $0 [options] <remote_spec> <path_spec>"
